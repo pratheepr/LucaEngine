@@ -4,11 +4,14 @@ from datetime import datetime
 from LucaDB import DBAccess as db
 
 pd.options.mode.chained_assignment = None
-#testing
+
+
+# testing
 
 def select_fltr_df(inp_data_frame, tag_name, time_frame):
     df_snapshot = inp_data_frame[inp_data_frame['OPC_TAG'] == tag_name]
-    df_refr_data = df_snapshot[df_snapshot['LOAD_TIMESTAMP'] >= datetime.now() - pd.Timedelta(seconds=int(time_frame))]
+    df_refr_data = df_snapshot[
+        df_snapshot['READREQ_TIMESTAMP'] >= datetime.now() - pd.Timedelta(seconds=int(time_frame))]
     df_refr_data['TAG_VALUE'] = pd.to_numeric(df_refr_data['TAG_VALUE'], errors='coerce')
 
     return df_refr_data
@@ -30,7 +33,8 @@ def get_alert_input(inp_row, inp_data_frame):
 def process_rule_logical_oper(ConnObj, inp_data_frame, tag_name, time_frame, lg_operator, inp_threshold,
                               inp_pcntg_ab_thold):
     df_snapshot = inp_data_frame[inp_data_frame['OPC_TAG'] == tag_name]
-    df_refr_data = df_snapshot[df_snapshot['LOAD_TIMESTAMP'] >= datetime.now() - pd.Timedelta(seconds=int(time_frame))]
+    df_refr_data = df_snapshot[
+        df_snapshot['READREQ_TIMESTAMP'] >= datetime.now() - pd.Timedelta(seconds=int(time_frame))]
     df_refr_data['TAG_VALUE'] = pd.to_numeric(df_refr_data['TAG_VALUE'], errors='coerce')
 
     no_of_rows = df_refr_data.shape[0]
@@ -51,6 +55,8 @@ def process_rule_logical_oper(ConnObj, inp_data_frame, tag_name, time_frame, lg_
             df_fltr_threshold = (df_refr_data[df_refr_data['TAG_VALUE'] <= inp_threshold])  # .shape(0)
         elif lg_operator == '==':
             df_fltr_threshold = (df_refr_data[df_refr_data['TAG_VALUE'] == inp_threshold])  # .shape(0)
+        elif lg_operator == '=NULL':
+            df_fltr_threshold = (df_refr_data[df_refr_data['TAG_STATUS'] == 'Error'])
 
         nof_fltr_threshold = df_fltr_threshold.shape[0]
 
@@ -90,7 +96,7 @@ def Create_Alert(ConnObj, Pcntg_above_threshold, row):
 def process_rule_flatline(ConnObj, inp_data_frame, tag_name, time_frame):
     # df_find_slope = inp_data_frame[['LOAD_TIMESTAMP','TAG_VALUE']]
 
-    x = inp_data_frame['LOAD_TIMESTAMP']
+    x = inp_data_frame['READREQ_TIMESTAMP']
     y = inp_data_frame['TAG_VALUE'].astype(float)
 
     x_seq = np.arange(x.size)
@@ -111,18 +117,19 @@ def process_rule_flatline(ConnObj, inp_data_frame, tag_name, time_frame):
     return rounded_slope, flatline_value
 
 
-
 if __name__ == "__main__":
 
     # pd_data = pd.read_csv('opcread_metrics.csv', parse_dates=['datetime'], infer_datetime_format=True)
 
-    DB_Location ='/Users/pratheepravysandirane/PycharmProjects/LucaEngine/LucaDB/cnrl_alerts.db'
+    # DB_Location ='/Users/pratheepravysandirane/PycharmProjects/LucaEngine/LucaDB/cnrl_alerts.db'
+    DB_Location = '../LucaDB/cnrl_alerts.db'
 
     DbConnObj = db.CrtConnObject(DB_Location)
 
     db_records = db.OpcTransLog_Select(ConnObj=DbConnObj, No_Of_Days=2)
 
-    df_OpcTransLog = pd.DataFrame(db_records, columns=['SID', 'OPC_TAG', 'TAG_VALUE', 'TAG_STATUS', 'LOAD_TIMESTAMP'])
+    df_OpcTransLog = pd.DataFrame(db_records,
+                                  columns=['SID', 'OPC_TAG', 'TAG_VALUE', 'TAG_STATUS', 'READREQ_TIMESTAMP'])
     df_OpcTransLog['TAG_VALUE'] = pd.to_numeric(df_OpcTransLog['TAG_VALUE'], errors='coerce')
 
     db_alerting_rules_rcd = db.AlertingRules_Select(ConnObj=DbConnObj)
@@ -163,7 +170,7 @@ if __name__ == "__main__":
             Crt_Alert_Ind = 0
             Pcntg_above_threshold = 0
 
-            if row['TAG_CONDITION'] in ['<', '>', '=', '>=', '<=']:
+            if row['TAG_CONDITION'] in ['<', '>', '=', '>=', '<=', '=NULL']:
 
                 if df_alert_inp_frame.shape[0] > 0:
                     Crt_Alert_Ind, Pcntg_above_threshold = process_rule_logical_oper(ConnObj=DbConnObj,
@@ -234,7 +241,7 @@ if __name__ == "__main__":
             alert_inp_threshold, alert_pcntg_abv_thold, df_alert_inp_frame = get_alert_input(inp_row=row,
                                                                                              inp_data_frame=df_OpcTransLog)
 
-            if row['TAG_CONDITION'] in ['<', '>', '=', '>=', '<=']:
+            if row['TAG_CONDITION'] in ['<', '>', '=', '>=', '<=', '=NULL']:
                 print('Single Cond:')
                 print(row['ALARM_NAME'])
                 print(row['CHECK_DURATION_IN_SECS'])
