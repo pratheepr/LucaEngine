@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 from LucaDB import DBAccess as db
+import time as tm
 
 pd.options.mode.chained_assignment = None
 
@@ -126,149 +127,151 @@ if __name__ == "__main__":
 
     DbConnObj = db.CrtConnObject(DB_Location)
 
-    db_records = db.OpcTransLog_Select(ConnObj=DbConnObj, No_Of_Days=2)
+    while 1:
+        db_records = db.OpcTransLog_Select(ConnObj=DbConnObj, No_Of_Days=2)
 
-    df_OpcTransLog = pd.DataFrame(db_records,
-                                  columns=['SID', 'OPC_TAG', 'TAG_VALUE', 'TAG_STATUS', 'READREQ_TIMESTAMP'])
-    df_OpcTransLog['TAG_VALUE'] = pd.to_numeric(df_OpcTransLog['TAG_VALUE'], errors='coerce')
+        df_OpcTransLog = pd.DataFrame(db_records,
+                                      columns=['SID', 'OPC_TAG', 'TAG_VALUE', 'TAG_STATUS', 'READREQ_TIMESTAMP'])
+        df_OpcTransLog['TAG_VALUE'] = pd.to_numeric(df_OpcTransLog['TAG_VALUE'], errors='coerce')
 
-    db_alerting_rules_rcd = db.AlertingRules_Select(ConnObj=DbConnObj)
-    df_alerting_rules = pd.DataFrame(db_alerting_rules_rcd,
-                                     columns=['SID', 'BUSS_AREA', 'ALARM_NAME', 'ALARM_DESC', 'TAG_NAME',
-                                              'TAG_CONDITION', 'THRESHOLD_VALUE',
-                                              'PCNTG_ABOVE_THRESHOLD', 'CHECK_DURATION_IN_SECS', 'MULTI_COND',
-                                              'LOGIC_FLOW_ORDER', 'LOGICAL_OPERATOR', 'ALERT_ACTIVE',
-                                              'SUPPRESS_AFTR_ALERT_IN_SECS', 'ALERT_RECEPIENTS']
-                                     )
+        db_alerting_rules_rcd = db.AlertingRules_Select(ConnObj=DbConnObj)
+        df_alerting_rules = pd.DataFrame(db_alerting_rules_rcd,
+                                         columns=['SID', 'BUSS_AREA', 'ALARM_NAME', 'ALARM_DESC', 'TAG_NAME',
+                                                  'TAG_CONDITION', 'THRESHOLD_VALUE',
+                                                  'PCNTG_ABOVE_THRESHOLD', 'CHECK_DURATION_IN_SECS', 'MULTI_COND',
+                                                  'LOGIC_FLOW_ORDER', 'LOGICAL_OPERATOR', 'ALERT_ACTIVE',
+                                                  'SUPPRESS_AFTR_ALERT_IN_SECS', 'ALERT_RECEPIENTS']
+                                         )
 
-    df_alerting_rules.sort_values(by=['ALARM_NAME', 'SID'], inplace=True)
-    # print(df_alerting_rules.columns)
+        df_alerting_rules.sort_values(by=['ALARM_NAME', 'SID'], inplace=True)
+        # print(df_alerting_rules.columns)
 
-    multi_cond_ind = 'N'
-    # curr_alarm_name = ''
-    prev_alarm_name = ''
-    multi_cond_result = ''
-    df_multi_cond_eval = pd.DataFrame
-    df_multicond_eval = pd.DataFrame(columns=['condition', 'func_output'])
-    multi_cond_idx = 1
+        multi_cond_ind = 'N'
+        # curr_alarm_name = ''
+        prev_alarm_name = ''
+        multi_cond_result = ''
+        df_multi_cond_eval = pd.DataFrame
+        df_multicond_eval = pd.DataFrame(columns=['condition', 'func_output'])
+        multi_cond_idx = 1
 
-    for index, row in df_alerting_rules.iterrows():
-        # print(row['ALARM_NAME'], row['TAG_NAME'])
-        print(row)
+        for index, row in df_alerting_rules.iterrows():
+            # print(row['ALARM_NAME'], row['TAG_NAME'])
+            print(row)
 
-        if row['MULTI_COND'] == 'Y' or multi_cond_ind == 'Y':
-            print('MULTI COND')
+            if row['MULTI_COND'] == 'Y' or multi_cond_ind == 'Y':
+                print('MULTI COND')
 
-            curr_alarm_name = row['ALARM_NAME']
+                curr_alarm_name = row['ALARM_NAME']
 
-            if len(prev_alarm_name) == 0:
-                prev_alarm_name = row['ALARM_NAME']
+                if len(prev_alarm_name) == 0:
+                    prev_alarm_name = row['ALARM_NAME']
 
-            alert_tag_name, alert_time_frame, alert_lg_operator, \
-            alert_inp_threshold, alert_pcntg_abv_thold, df_alert_inp_frame = get_alert_input(inp_row=row,
-                                                                                             inp_data_frame=df_OpcTransLog)
-            Crt_Alert_Ind = 0
-            Pcntg_above_threshold = 0
+                alert_tag_name, alert_time_frame, alert_lg_operator, \
+                alert_inp_threshold, alert_pcntg_abv_thold, df_alert_inp_frame = get_alert_input(inp_row=row,
+                                                                                                 inp_data_frame=df_OpcTransLog)
+                Crt_Alert_Ind = 0
+                Pcntg_above_threshold = 0
 
-            if row['TAG_CONDITION'] in ['<', '>', '=', '>=', '<=', '=NULL']:
+                if row['TAG_CONDITION'] in ['<', '>', '=', '>=', '<=', '=NULL']:
 
-                if df_alert_inp_frame.shape[0] > 0:
-                    Crt_Alert_Ind, Pcntg_above_threshold = process_rule_logical_oper(ConnObj=DbConnObj,
-                                                                                     inp_data_frame=df_alert_inp_frame,
-                                                                                     tag_name=alert_tag_name,
-                                                                                     time_frame=alert_time_frame,
-                                                                                     lg_operator=alert_lg_operator,
-                                                                                     inp_threshold=alert_inp_threshold,
-                                                                                     inp_pcntg_ab_thold=alert_pcntg_abv_thold
-                                                                                     )
+                    if df_alert_inp_frame.shape[0] > 0:
+                        Crt_Alert_Ind, Pcntg_above_threshold = process_rule_logical_oper(ConnObj=DbConnObj,
+                                                                                         inp_data_frame=df_alert_inp_frame,
+                                                                                         tag_name=alert_tag_name,
+                                                                                         time_frame=alert_time_frame,
+                                                                                         lg_operator=alert_lg_operator,
+                                                                                         inp_threshold=alert_inp_threshold,
+                                                                                         inp_pcntg_ab_thold=alert_pcntg_abv_thold
+                                                                                         )
 
 
 
-            elif row['TAG_CONDITION'] == 'FLATLINE':
-                print('FLATLINE CHECK')
-                print(row['ALARM_NAME'])
+                elif row['TAG_CONDITION'] == 'FLATLINE':
+                    print('FLATLINE CHECK')
+                    print(row['ALARM_NAME'])
 
-                line_slope = 0
-                flatline_value = 0
+                    line_slope = 0
+                    flatline_value = 0
 
-                if df_alert_inp_frame.shape[0] > 0:
-                    line_slope, flatline_value = process_rule_flatline(ConnObj=DbConnObj,
-                                                                       inp_data_frame=df_alert_inp_frame,
-                                                                       tag_name=alert_tag_name,
-                                                                       time_frame=alert_time_frame
-                                                                       )
-                if line_slope < 0.1:
-                    row['THRESHOLD_VALUE'] = flatline_value
-                    Crt_Alert_Ind = 1
-                    # Create_Alert(ConnObj=DbConnObj, Pcntg_above_threshold=flatline_value, row=row)
-
-            df_multicond_eval.at[multi_cond_idx, 'condition'] = row['LOGICAL_OPERATOR']
-
-            if Crt_Alert_Ind == 1:
-                df_multicond_eval.at[multi_cond_idx, 'func_output'] = 1
-            else:
-                df_multicond_eval.at[multi_cond_idx, 'func_output'] = 0
-
-            multi_cond_idx = multi_cond_idx + 1
-
-            if len(row['LOGICAL_OPERATOR']) == 0:
-                print('****EVALUATE MULTI CONDITION OPERATION ****')
-                final_eval = 0
-                prev_alarm_name = ''
-
-                for idx, rw in df_multicond_eval.iterrows():
-                    print(idx)
-                    print(rw)
-                    if idx == 1:
-                        prev_oper = rw['condition']
-                        # prev_func_output = rw['func_output']
-                        final_eval = rw['func_output']
-                    else:
-                        if prev_oper == 'AND':
-                            final_eval = final_eval * rw['func_output']
-                        else:
-                            final_eval = final_eval + rw['func_output']
-                        prev_oper = rw['condition']
-
-                if final_eval >= 1:
-                    Create_Alert(ConnObj=DbConnObj, Pcntg_above_threshold=Pcntg_above_threshold, row=row)
-
-                multi_cond_idx = 1
-                # Create_Alert(ConnObj=DbConnObj, Pcntg_above_threshold=Pcntg_above_threshold, row=row)
-        else:
-
-            alert_tag_name, alert_time_frame, alert_lg_operator, \
-            alert_inp_threshold, alert_pcntg_abv_thold, df_alert_inp_frame = get_alert_input(inp_row=row,
-                                                                                             inp_data_frame=df_OpcTransLog)
-
-            if row['TAG_CONDITION'] in ['<', '>', '=', '>=', '<=', '=NULL']:
-                print('Single Cond:')
-                print(row['ALARM_NAME'])
-                print(row['CHECK_DURATION_IN_SECS'])
-
-                if df_alert_inp_frame.shape[0] > 0:
-                    Crt_Alert_Ind, Pcntg_above_threshold = process_rule_logical_oper(ConnObj=DbConnObj,
-                                                                                     inp_data_frame=df_alert_inp_frame,
-                                                                                     tag_name=alert_tag_name,
-                                                                                     time_frame=alert_time_frame,
-                                                                                     lg_operator=alert_lg_operator,
-                                                                                     inp_threshold=alert_inp_threshold,
-                                                                                     inp_pcntg_ab_thold=alert_pcntg_abv_thold)
-
-                    if Crt_Alert_Ind == 1:
-                        Create_Alert(ConnObj=DbConnObj, Pcntg_above_threshold=Pcntg_above_threshold, row=row)
-
-            elif row['TAG_CONDITION'] == 'FLATLINE':
-                print('FLATLINE CHECK')
-                print(row['ALARM_NAME'])
-
-                if df_alert_inp_frame.shape[0] > 0:
-                    line_slope, flatline_value = process_rule_flatline(ConnObj=DbConnObj,
-                                                                       inp_data_frame=df_alert_inp_frame,
-                                                                       tag_name=alert_tag_name,
-                                                                       time_frame=alert_time_frame
-                                                                       )
-
+                    if df_alert_inp_frame.shape[0] > 0:
+                        line_slope, flatline_value = process_rule_flatline(ConnObj=DbConnObj,
+                                                                           inp_data_frame=df_alert_inp_frame,
+                                                                           tag_name=alert_tag_name,
+                                                                           time_frame=alert_time_frame
+                                                                           )
                     if line_slope < 0.1:
                         row['THRESHOLD_VALUE'] = flatline_value
-                        Create_Alert(ConnObj=DbConnObj, Pcntg_above_threshold=flatline_value, row=row)
+                        Crt_Alert_Ind = 1
+                        # Create_Alert(ConnObj=DbConnObj, Pcntg_above_threshold=flatline_value, row=row)
+
+                df_multicond_eval.at[multi_cond_idx, 'condition'] = row['LOGICAL_OPERATOR']
+
+                if Crt_Alert_Ind == 1:
+                    df_multicond_eval.at[multi_cond_idx, 'func_output'] = 1
+                else:
+                    df_multicond_eval.at[multi_cond_idx, 'func_output'] = 0
+
+                multi_cond_idx = multi_cond_idx + 1
+
+                if len(row['LOGICAL_OPERATOR']) == 0:
+                    print('****EVALUATE MULTI CONDITION OPERATION ****')
+                    final_eval = 0
+                    prev_alarm_name = ''
+
+                    for idx, rw in df_multicond_eval.iterrows():
+                        print(idx)
+                        print(rw)
+                        if idx == 1:
+                            prev_oper = rw['condition']
+                            # prev_func_output = rw['func_output']
+                            final_eval = rw['func_output']
+                        else:
+                            if prev_oper == 'AND':
+                                final_eval = final_eval * rw['func_output']
+                            else:
+                                final_eval = final_eval + rw['func_output']
+                            prev_oper = rw['condition']
+
+                    if final_eval >= 1:
+                        Create_Alert(ConnObj=DbConnObj, Pcntg_above_threshold=Pcntg_above_threshold, row=row)
+
+                    multi_cond_idx = 1
+                    # Create_Alert(ConnObj=DbConnObj, Pcntg_above_threshold=Pcntg_above_threshold, row=row)
+            else:
+
+                alert_tag_name, alert_time_frame, alert_lg_operator, \
+                alert_inp_threshold, alert_pcntg_abv_thold, df_alert_inp_frame = get_alert_input(inp_row=row,
+                                                                                                 inp_data_frame=df_OpcTransLog)
+
+                if row['TAG_CONDITION'] in ['<', '>', '=', '>=', '<=', '=NULL']:
+                    print('Single Cond:')
+                    print(row['ALARM_NAME'])
+                    print(row['CHECK_DURATION_IN_SECS'])
+
+                    if df_alert_inp_frame.shape[0] > 0:
+                        Crt_Alert_Ind, Pcntg_above_threshold = process_rule_logical_oper(ConnObj=DbConnObj,
+                                                                                         inp_data_frame=df_alert_inp_frame,
+                                                                                         tag_name=alert_tag_name,
+                                                                                         time_frame=alert_time_frame,
+                                                                                         lg_operator=alert_lg_operator,
+                                                                                         inp_threshold=alert_inp_threshold,
+                                                                                         inp_pcntg_ab_thold=alert_pcntg_abv_thold)
+
+                        if Crt_Alert_Ind == 1:
+                            Create_Alert(ConnObj=DbConnObj, Pcntg_above_threshold=Pcntg_above_threshold, row=row)
+
+                elif row['TAG_CONDITION'] == 'FLATLINE':
+                    print('FLATLINE CHECK')
+                    print(row['ALARM_NAME'])
+
+                    if df_alert_inp_frame.shape[0] > 0:
+                        line_slope, flatline_value = process_rule_flatline(ConnObj=DbConnObj,
+                                                                           inp_data_frame=df_alert_inp_frame,
+                                                                           tag_name=alert_tag_name,
+                                                                           time_frame=alert_time_frame
+                                                                           )
+
+                        if line_slope < 0.1:
+                            row['THRESHOLD_VALUE'] = flatline_value
+                            Create_Alert(ConnObj=DbConnObj, Pcntg_above_threshold=flatline_value, row=row)
+        tm.sleep(30)
