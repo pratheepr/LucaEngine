@@ -159,7 +159,7 @@ def OpcTransLog_Select(ConnObj, No_Of_Days):
     try:
         CursorObj = ConnObj.cursor()
 
-        sqlite_opctranslog_select_qry = """SELECT SID, OPC_TAG, TAG_VALUE, TAG_STATUS, LOAD_TIMESTAMP FROM OPC_TRANS_LOG """ \
+        sqlite_opctranslog_select_qry = """SELECT SID, OPC_TAG, TAG_VALUE, TAG_STATUS, OPC_TIMESTAMP FROM OPC_TRANS_LOG """ \
                                         "WHERE (LOAD_TIMESTAMP) > DATETIME('now','-" + str(No_Of_Days) + " day')"""
 
         print(sqlite_opctranslog_select_qry)
