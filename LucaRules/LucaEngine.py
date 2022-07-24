@@ -82,16 +82,37 @@ def Create_Alert(ConnObj, Pcntg_above_threshold, row):
     alerts_alert_condition = row['TAG_NAME'] + ' ' + row['TAG_CONDITION'] + ' ' + str(row['THRESHOLD_VALUE'])
     alerts_actual_value = Pcntg_above_threshold
 
-    print('**** ALERT CREATED ****')
-    print(row['PCNTG_ABOVE_THRESHOLD'])
+    last_alerts = db.Alerts_Select(ConnObj=DbConnObj)
 
-    db.Alerts_Insert(ConnObj=ConnObj,
-                     Alerting_Rules_sid=alerts_alerting_rules_sid,
-                     Alert_Conditiion=alerts_alert_condition,
-                     Actual_Value=alerts_actual_value,
-                     Alert_Mail_Sent='Y',
-                     Alert_Comments=alerts_alert_comments
-                     )
+    df_last_alerts = pd.DataFrame(last_alerts, columns=['SID', 'LAST_ALERT_DATETIME'])
+    df_last_alerts['LAST_ALERT_DATETIME'] = pd.to_datetime(df_last_alerts['LAST_ALERT_DATETIME'])
+    print(df_last_alerts.dtypes)
+
+    print(type(row['SUPPRESS_AFTR_ALERT_IN_SECS']))
+    suppress_after_alert = (row['SUPPRESS_AFTR_ALERT_IN_SECS'])
+
+    print(datetime.now() - pd.Timedelta(seconds=suppress_after_alert))
+
+    print(type(df_last_alerts['LAST_ALERT_DATETIME']))
+    print(df_last_alerts['LAST_ALERT_DATETIME'])
+
+    df_alert_found = df_last_alerts[(int(df_last_alerts['SID']) == alerts_alerting_rules_sid) & (
+                (df_last_alerts['LAST_ALERT_DATETIME']) > datetime.now() - pd.Timedelta(seconds=suppress_after_alert))]
+
+    if df_alert_found.shape[0] >= 1:
+        print('*** ALERT SUPPRESSED ')
+    else:
+
+        print('**** ALERT CREATED ****')
+        print(row['PCNTG_ABOVE_THRESHOLD'])
+
+        db.Alerts_Insert(ConnObj=ConnObj,
+                         Alerting_Rules_sid=alerts_alerting_rules_sid,
+                         Alert_Conditiion=alerts_alert_condition,
+                         Actual_Value=alerts_actual_value,
+                         Alert_Mail_Sent='Y',
+                         Alert_Comments=alerts_alert_comments
+                         )
 
 
 def process_rule_flatline(ConnObj, inp_data_frame, tag_name, time_frame):
@@ -122,8 +143,8 @@ if __name__ == "__main__":
 
     # pd_data = pd.read_csv('opcread_metrics.csv', parse_dates=['datetime'], infer_datetime_format=True)
 
-    # DB_Location ='/Users/pratheepravysandirane/PycharmProjects/LucaEngine/LucaDB/cnrl_alerts.db'
-    DB_Location = '../LucaDB/cnrl_alerts.db'
+    # DB_Location ='/Users/pratheepravysandirane/PycharmProjects/LucaEngine/LucaDB/cnrl_alerts_prod.db'
+    DB_Location = '../LucaDB/cnrl_alerts_prod.db'
 
     DbConnObj = db.CrtConnObject(DB_Location)
 

@@ -224,6 +224,7 @@ def OpcTagMaster_Select(ConnObj):
         else:
             return []
 
+
 def OpcTagMaster_Insert(ConnObj, Opc_TagName, Opc_Tag_Desc, Insert_User, Tag_Active):
     db_msg = ''
     try:
@@ -245,6 +246,29 @@ def OpcTagMaster_Insert(ConnObj, Opc_TagName, Opc_Tag_Desc, Insert_User, Tag_Act
         db_msg = 'Failure: ' + error
 
     return db_msg
+
+
+def Alerts_Select(ConnObj):
+    db_msg = ''
+    try:
+        CursorObj = ConnObj.cursor()
+
+        sqlite_Alerts_Select_Qry = """SELECT ALERTING_RULES_SID, MAX(LOAD_DATETIME) LAST_ALERT_DATETIME FROM ALERTS WHERE LOAD_DATETIME > DATETIME('now', '-1 day') GROUP BY ALERTING_RULES_SID"""
+
+        ret = CursorObj.execute(sqlite_Alerts_Select_Qry)
+        records = CursorObj.fetchall()
+
+        CursorObj.close()
+        db_msg = 'success'
+    except sqlite3.Error as Err:
+        print("Error in selecting Alerts data", Err)
+        db_msg = 'failure' + Err
+
+    finally:
+        if db_msg == 'success':
+            return records
+        else:
+            return []
 
 
 if __name__ == "__main__":
