@@ -3,6 +3,7 @@ import numpy as np
 from datetime import datetime
 from LucaDB import DBAccess as db
 import time as tm
+from LucaEmailer import LucaMailExec as LucaMail
 
 pd.options.mode.chained_assignment = None
 
@@ -63,7 +64,7 @@ def process_rule_logical_oper(ConnObj, inp_data_frame, tag_name, time_frame, lg_
 
         Pcntg_above_threshold = round((nof_fltr_threshold / no_of_rows) * 100, 3)
 
-        print('No. of dpts in last %2d hours : %2d' % (time_frame, no_of_rows))
+        print('No. of dpts in last %2d seconds : %2d' % (time_frame, no_of_rows))
         print('No. of values above threshold: %2d' % nof_fltr_threshold)
         print('% of values above threshold:', Pcntg_above_threshold)
 
@@ -81,31 +82,36 @@ def Create_Alert(ConnObj, Pcntg_above_threshold, row):
         row['THRESHOLD_VALUE']) + ' for duration: ' + str(row['CHECK_DURATION_IN_SECS'])
     alerts_alert_condition = row['TAG_NAME'] + ' ' + row['TAG_CONDITION'] + ' ' + str(row['THRESHOLD_VALUE'])
     alerts_actual_value = Pcntg_above_threshold
-
+    alert_desc = row['ALARM_DESC']
     last_alerts = db.Alerts_Select(ConnObj=DbConnObj)
 
     df_last_alerts = pd.DataFrame(last_alerts, columns=['SID', 'LAST_ALERT_DATETIME'])
     df_last_alerts['LAST_ALERT_DATETIME'] = pd.to_datetime(df_last_alerts['LAST_ALERT_DATETIME'])
-    print(df_last_alerts.dtypes)
-
-    print(type(row['SUPPRESS_AFTR_ALERT_IN_SECS']))
     suppress_after_alert = (row['SUPPRESS_AFTR_ALERT_IN_SECS'])
 
-    print(datetime.now() - pd.Timedelta(seconds=suppress_after_alert))
+    mail_receivers = row['ALERT_RECEPIENTS']
+    mail_alert_details = row['ALERT_DETAILS_FOR_EMAIL']
+    mail_alert_recommended_steps = row['ALERT_RECOMMENDED_STEPS']
 
-    print(type(df_last_alerts['LAST_ALERT_DATETIME']))
-    print(df_last_alerts['LAST_ALERT_DATETIME'])
+    create_alert = 0
 
-    df_alert_found = df_last_alerts[(int(df_last_alerts['SID']) == alerts_alerting_rules_sid) & (
+    if df_last_alerts.shape[0] > 0:
+        # df_alert_found = df_last_alerts[(int(df_last_alerts['SID']) == alerts_alerting_rules_sid) & (
+        #        (df_last_alerts['LAST_ALERT_DATETIME']) > datetime.now() - pd.Timedelta(seconds=suppress_after_alert))]
+
+        df_alert_found = df_last_alerts[(df_last_alerts['SID'] == alerts_alerting_rules_sid) & (
                 (df_last_alerts['LAST_ALERT_DATETIME']) > datetime.now() - pd.Timedelta(seconds=suppress_after_alert))]
 
-    if df_alert_found.shape[0] >= 1:
-        print('*** ALERT SUPPRESSED ')
+        # df_alert_found = df_last_alerts[(df_last_alerts['SID'] == alerts_alerting_rules_sid)]
+
+        if df_alert_found.shape[0] >= 1:
+            create_alert = 0
+        else:
+            create_alert = 1
     else:
+        create_alert = 1
 
-        print('**** ALERT CREATED ****')
-        print(row['PCNTG_ABOVE_THRESHOLD'])
-
+    if create_alert == 1:
         db.Alerts_Insert(ConnObj=ConnObj,
                          Alerting_Rules_sid=alerts_alerting_rules_sid,
                          Alert_Conditiion=alerts_alert_condition,
@@ -113,6 +119,10 @@ def Create_Alert(ConnObj, Pcntg_above_threshold, row):
                          Alert_Mail_Sent='Y',
                          Alert_Comments=alerts_alert_comments
                          )
+        LucaMail.send_email(msg_receivers=mail_receivers,
+                            msg_subject=alert_desc,
+                            msg_alert_details_for_email=mail_alert_details,
+                            msg_alert_recommended_steps=mail_alert_recommended_steps)
 
 
 def process_rule_flatline(ConnObj, inp_data_frame, tag_name, time_frame):
@@ -161,7 +171,8 @@ if __name__ == "__main__":
                                                   'TAG_CONDITION', 'THRESHOLD_VALUE',
                                                   'PCNTG_ABOVE_THRESHOLD', 'CHECK_DURATION_IN_SECS', 'MULTI_COND',
                                                   'LOGIC_FLOW_ORDER', 'LOGICAL_OPERATOR', 'ALERT_ACTIVE',
-                                                  'SUPPRESS_AFTR_ALERT_IN_SECS', 'ALERT_RECEPIENTS']
+                                                  'SUPPRESS_AFTR_ALERT_IN_SECS', 'ALERT_RECEPIENTS',
+                                                  'ALERT_DETAILS_FOR_EMAIL', 'ALERT_RECOMMENDED_STEPS']
                                          )
 
         df_alerting_rules.sort_values(by=['ALARM_NAME', 'SID'], inplace=True)

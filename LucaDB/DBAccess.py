@@ -14,18 +14,18 @@ def CrtConnObject(DB_Location):
 # function  to insert data into alerting rules
 def AlertingRules_Insert(ConnObj, Buss_area, Alarm_name, Alarm_desc, Tag_name, Tag_condition, Threshold_value,
                          Pcntg_Above_Threshold, Check_duration_secs, Multi_cond, Logic_flow_order,
-                         Logical_operator, Alert_active, Suppress_after_alert_secs, Alert_recepients):
+                         Logical_operator, Alert_active, Suppress_after_alert_secs, Alert_recepients, Alert_Details_For_Email, Alert_Recommended_Steps):
     db_msg = ''
     try:
         CursorObj = ConnObj.cursor()
 
         sqlite_alerting_rules_insert_param = "INSERT INTO ALERTING_RULES (BUSS_AREA, ALARM_DESC, ALARM_NAME, TAG_NAME, TAG_CONDITION, THRESHOLD_VALUE, PCNTG_ABOVE_THRESHOLD, CHECK_DURATION_IN_SECS," \
-                                             "MULTI_COND, LOGIC_FLOW_ORDER, LOGICAL_OPERATOR, ALERT_ACTIVE, SUPPRESS_AFTR_ALERT_IN_SECS, ALERT_RECEPIENTS) " \
-                                             "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                                             "MULTI_COND, LOGIC_FLOW_ORDER, LOGICAL_OPERATOR, ALERT_ACTIVE, SUPPRESS_AFTR_ALERT_IN_SECS, ALERT_RECEPIENTS, ALERT_DETAILS_FOR_EMAIL, ALERT_RECOMMENDED_STEPS) " \
+                                             "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
         sqlite_alerting_rules_data_tuple = (
             Buss_area, Alarm_name, Alarm_desc, Tag_name, Tag_condition, Threshold_value, Pcntg_Above_Threshold,
             Check_duration_secs, Multi_cond,
-            Logic_flow_order, Logical_operator, Alert_active, Suppress_after_alert_secs, Alert_recepients)
+            Logic_flow_order, Logical_operator, Alert_active, Suppress_after_alert_secs, Alert_recepients, Alert_Details_For_Email, Alert_Recommended_Steps)
 
         CursorObj.execute(sqlite_alerting_rules_insert_param, sqlite_alerting_rules_data_tuple)
         ConnObj.commit()
@@ -52,7 +52,7 @@ def AlertingRules_Select(ConnObj):
 
         sqlite_alertingrules_select_qry = """SELECT SID, BUSS_AREA, ALARM_NAME, ALARM_DESC, TAG_NAME, TAG_CONDITION, THRESHOLD_VALUE, PCNTG_ABOVE_THRESHOLD,
                                             CHECK_DURATION_IN_SECS, MULTI_COND, LOGIC_FLOW_ORDER, LOGICAL_OPERATOR, ALERT_ACTIVE,
-                                            SUPPRESS_AFTR_ALERT_IN_SECS, ALERT_RECEPIENTS FROM ALERTING_RULES WHERE ALERT_ACTIVE='Y'"""
+                                            SUPPRESS_AFTR_ALERT_IN_SECS, ALERT_RECEPIENTS, ALERT_DETAILS_FOR_EMAIL, ALERT_RECOMMENDED_STEPS FROM ALERTING_RULES WHERE ALERT_ACTIVE='Y'"""
 
         print(sqlite_alertingrules_select_qry)
 
