@@ -1,0 +1,11 @@
+1. In the lucaengine.py file, change line no 169 to the correct path of the sqlite file.
+2. Download the postgres 14.0 version for usage.
+
+3.
+2. In the DBAccess.py file, in the function CrtPGConnObject, set the details of the postgres database.
+    conn = psycopg2.connect(
+            host="localhost",
+            database="postgres",
+            user="postgres",
+            password="dheepu4682")
+3. Use the right version of the LucaEmailer since in Git, I may not have the current production version.

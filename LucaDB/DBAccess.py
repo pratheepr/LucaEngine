@@ -1,5 +1,6 @@
 import sqlite3
 from datetime import datetime, date
+import psycopg2
 
 
 def CrtConnObject(DB_Location):
@@ -11,10 +12,64 @@ def CrtConnObject(DB_Location):
         print("Error while working with SQLite", ERROR)
 
 
+def CrtPGConnObject():
+    print('inside PGCrt ')
+    try:
+        conn = psycopg2.connect(
+            host="localhost",
+            database="postgres",
+            user="postgres",
+            password="dheepu4682")
+
+        return conn
+    except psycopg2.Error as Error:
+        print('Error is: ' + Error)
+    return "error"
+
+
+def Insert2PG_OpcTransLogHist(PGConnObj, rcd):
+    print('inside PGInsert')
+    PGInsert_Sql = 'INSERT INTO "OPC_TRANS_LOG_HIST"("OPC_TAG", "TAG_VALUE", "TAG_STATUS", "OPC_TIMESTAMP", "READREQ_TIMESTAMP") VALUES(%s, %s, %s, %s, %s)'
+    exception_ind = 1
+    try:
+        curs = PGConnObj.cursor()
+        for record in rcd:
+            if record[3]:
+                opc_tmstmp = record[3].strftime('%Y-%m-%d %H:%M:%S')
+            if record[4]:
+                readreq_tmstmp = record[4].strftime('%Y-%m-%d %H:%M:%S')
+
+            insert_value = (record[0], record[1], record[2], opc_tmstmp, readreq_tmstmp)
+            curs.execute(PGInsert_Sql, insert_value)
+
+        PGConnObj.commit()
+        curs.close()
+        exception_ind = 0
+    except (Exception, psycopg2.DatabaseError) as PGError:
+        print(PGError)
+        exception_ind = 1
+    finally:
+        if PGConnObj is not None:
+            PGConnObj.close()
+            return exception_ind
+
+
+def Insert2PG_Test(PGConnObj, rcd):
+    cur = PGConnObj.cursor()
+
+    for record in rcd:
+        cur.execute("INSERT INTO ")
+
+
+    PGConnObj.commit()
+    cur.close()
+
+
 # function  to insert data into alerting rules
 def AlertingRules_Insert(ConnObj, Buss_area, Alarm_name, Alarm_desc, Tag_name, Tag_condition, Threshold_value,
                          Pcntg_Above_Threshold, Check_duration_secs, Multi_cond, Logic_flow_order,
-                         Logical_operator, Alert_active, Suppress_after_alert_secs, Alert_recepients, Alert_Details_For_Email, Alert_Recommended_Steps):
+                         Logical_operator, Alert_active, Suppress_after_alert_secs, Alert_recepients,
+                         Alert_Details_For_Email, Alert_Recommended_Steps):
     db_msg = ''
     try:
         CursorObj = ConnObj.cursor()
@@ -25,7 +80,8 @@ def AlertingRules_Insert(ConnObj, Buss_area, Alarm_name, Alarm_desc, Tag_name, T
         sqlite_alerting_rules_data_tuple = (
             Buss_area, Alarm_name, Alarm_desc, Tag_name, Tag_condition, Threshold_value, Pcntg_Above_Threshold,
             Check_duration_secs, Multi_cond,
-            Logic_flow_order, Logical_operator, Alert_active, Suppress_after_alert_secs, Alert_recepients, Alert_Details_For_Email, Alert_Recommended_Steps)
+            Logic_flow_order, Logical_operator, Alert_active, Suppress_after_alert_secs, Alert_recepients,
+            Alert_Details_For_Email, Alert_Recommended_Steps)
 
         CursorObj.execute(sqlite_alerting_rules_insert_param, sqlite_alerting_rules_data_tuple)
         ConnObj.commit()
@@ -93,8 +149,32 @@ def Alerts_Insert(ConnObj, Alerting_Rules_sid, Alert_Conditiion, Actual_Value, A
     return db_msg
 
 
+def Alerts_Select(ConnObj, Alerting_Rules_SID, Suppress_After_Alert_In_Secs):
+    db_msg = ''
+    records = []
+    try:
+        CursorObj = ConnObj.cursor()
+
+        sqlite_alert_select_qry = """SELECT SID, ALERTING_RULES_SID, ALERT_CONDITION, ALERT_VALUE, LOAD_DATETIME, ALERT_MAIL_SENT FROM ALERTS '""" \
+                                  "WHERE (LOAD_DATETIME) > DATETIME('now','-" + str(
+            Suppress_After_Alert_In_Secs) + " seconds')"""
+        print(sqlite_alert_select_qry)
+
+        ret = CursorObj.execute(sqlite_alertingrules_select_qry)
+        records = CursorObj.fetchall()
+
+        CursorObj.close()
+        db_msg = 'success'
+
+    except sqlite3.Error as error:
+        print("Error while working with SQLite at Opc trans table", error)
+        # db_msg = 'Failure: ' + error
+
+    return records
+
+
 # function to delete records less than the given input date
-def Alerts_Purge(ConnObj, input_date):
+def Alerts_Purge(ConnObj, Alarm_Name):
     db_msg = ''
     format = '%Y-%m-%d'  # suitable  format
     input_date = datetime.strptime(input_date, format)
@@ -177,17 +257,39 @@ def OpcTransLog_Select(ConnObj, No_Of_Days):
     return records
 
 
-# function to purge data from opc_trans_table
-def OpcTransLog_Purge(ConnObj, input_date):
+def OpcTransLog_CopyToHist(ConnObj, Prev_N_Days):
     db_msg = ''
-    format = '%Y-%m-%d'  # suitable  format
-    input_date = datetime.strptime(input_date, format)
-    Delete_Sql = "DELETE FROM OPC_TRANS_LOG WHERE DATE(READREQ_TIMESTAMP) <= ? "
-    param = [input_date]
+    records = []
+    try:
+        CursorObj = ConnObj.cursor()
+
+        sqlite_opctranslog_select_qry = """SELECT OPC_TAG, TAG_VALUE, TAG_STATUS, OPC_TIMESTAMP, READREQ_TIMESTAMP FROM OPC_TRANS_LOG """ \
+                                        "WHERE (READREQ_TIMESTAMP) <= DATETIME('now','-" + str(Prev_N_Days) + " day')"""
+
+        print(sqlite_opctranslog_select_qry)
+
+        ret = CursorObj.execute(sqlite_opctranslog_select_qry)
+        records = CursorObj.fetchall()
+
+        CursorObj.close()
+        db_msg = 'success'
+
+    except sqlite3.Error as error:
+        print("Error while working with SQLite at Opc trans table", error)
+        # db_msg = 'Failure: ' + error
+
+    return records
+
+
+# function to purge data from opc_trans_table
+def OpcTransLog_Purge(ConnObj, Prev_N_Days):
+    db_msg = ''
+    Delete_Sql = """DELETE FROM OPC_TRANS_LOG """ \
+                  "where (READREQ_TIMESTAMP) <= DATETIME('now','-" + str(Prev_N_Days) + " day')"""
 
     try:
         CursorObj = ConnObj.cursor()
-        CursorObj.execute(Delete_Sql, param)
+        CursorObj.execute(Delete_Sql)
         ConnObj.commit()
         CursorObj.close()
         db_msg = 'success'

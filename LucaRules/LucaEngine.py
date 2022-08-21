@@ -3,10 +3,9 @@ import numpy as np
 from datetime import datetime
 from LucaDB import DBAccess as db
 import time as tm
-from LucaEmailer import LucaMailExec as LucaMail
+from LucaEmailer import SendEmail as LucaMail
 
 pd.options.mode.chained_assignment = None
-
 
 # testing
 
@@ -148,17 +147,40 @@ def process_rule_flatline(ConnObj, inp_data_frame, tag_name, time_frame):
 
     return rounded_slope, flatline_value
 
+def archive_to_postgres(Prev_N_Days):
+    rcd = db.OpcTransLog_CopyToHist(ConnObj=DbConnObj, Prev_N_Days=Prev_N_Days)
+    return_code = 0
+    PGConnObj = db.CrtPGConnObject()
+    ret_code = db.Insert2PG_OpcTransLogHist(PGConnObj, rcd)
+    if ret_code == 0:
+        ret = db.OpcTransLog_Purge(ConnObj=DbConnObj, Prev_N_Days=Prev_N_Days)
+        if ret == 'success':
+            return_code = 0
+        else:
+            return_code = 1
+    return return_code
 
 if __name__ == "__main__":
 
     # pd_data = pd.read_csv('opcread_metrics.csv', parse_dates=['datetime'], infer_datetime_format=True)
 
     # DB_Location ='/Users/pratheepravysandirane/PycharmProjects/LucaEngine/LucaDB/cnrl_alerts_prod.db'
-    DB_Location = '../LucaDB/cnrl_alerts.db'
-
+    # DB_Location = '../LucaDB/cnrl_alerts_22oct.db'
+    DB_Location = '/Users/pratheepravysandirane/Downloads/cnrl_alerts_22oct.db'
     DbConnObj = db.CrtConnObject(DB_Location)
+    archive_ind = 0
 
     while 1:
+        if (archive_ind == 0) & (datetime.now().hour == 1):
+            arch_ret_code = archive_to_postgres(Prev_N_Days=2)
+            if arch_ret_code == 0:
+                archive_ind = 1 # Archival is success
+            else:
+                archive_ind = 0
+        elif datetime.now().hour != 1:
+            archive_ind = 0
+
+
         db_records = db.OpcTransLog_Select(ConnObj=DbConnObj, No_Of_Days=2)
 
         df_OpcTransLog = pd.DataFrame(db_records,
@@ -185,6 +207,8 @@ if __name__ == "__main__":
         df_multi_cond_eval = pd.DataFrame
         df_multicond_eval = pd.DataFrame(columns=['condition', 'func_output'])
         multi_cond_idx = 1
+
+
 
         for index, row in df_alerting_rules.iterrows():
             # print(row['ALARM_NAME'], row['TAG_NAME'])

@@ -1,3 +1,30 @@
+import smtplib
+from email.message import EmailMessage
+import ssl
+import LucaEmailer.PrepEmail as access_mail
+
+conn_obj = access_mail.CrtConnObject()
+mail, msg = access_mail.Data_Retrival(conn_obj)
+
+for i,j in zip(mail,msg):
+    sender = "robypratheep@gmail.com"   #  for outlook ---> sender@outlook.com
+    reciever = i   # it may want to be gmail ---->  destination@gmail.com
+    password = 'vino4682'
+    msg_b = j           # body
+    msg_body = str(msg_b)
+
+    text = 'this is  sample message'    # subject
+    msg = EmailMessage()
+    msg['subject'] = text
+    msg['from'] = sender
+    msg['to'] = reciever
+    msg.set_content(msg_body)     #  emphasises all the mailing information
+
+
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:  #  if it is outlook service ---> with smtplib.SMTP_SSL('smtp-mail.outlook.com',465) as smtp
+        smtp.login(sender, password)
+        smtp.send_message(msg)
+
 #!/usr/bin/python
 import smtplib
 
