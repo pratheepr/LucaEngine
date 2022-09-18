@@ -1,0 +1,18 @@
+1. Execute the below create script in PostgresSQL
+
+CREATE TABLE public."OPC_TRANS_LOG_AGGR" (
+	"SID" serial4 NOT NULL,
+	"OPC_DATE" date NULL,
+	"OPC_TAG" varchar(128) NULL,
+	"TAG_VALUE_aggr" float4 NULL,
+	CONSTRAINT "OPC_TRANS_LOG_AGGR_pkey" PRIMARY KEY ("SID"),
+	CONSTRAINT opc_trans_log_aggr_un UNIQUE ("OPC_DATE", "OPC_TAG")
+);
+
+2. Overwrite the DBAccess.py file with the current version. Current version contains new functions to perform the required ETL operations.
+
+3. Copy over the new file LucaDB/LucaAggregation.py.
+
+4. Compile the file LucaDB/LucaAggregation.py from the root LucaEngine folder.
+
+5. Setup the LucaAggregation.py as a Windows service to execute overnite at the same time daily.
