@@ -165,7 +165,7 @@ if __name__ == "__main__":
     # pd_data = pd.read_csv('opcread_metrics.csv', parse_dates=['datetime'], infer_datetime_format=True)
 
     # DB_Location ='/Users/pratheepravysandirane/PycharmProjects/LucaEngine/LucaDB/cnrl_alerts_prod.db'
-    # DB_Location = '../LucaDB/cnrl_alerts_22oct.db'
+    # DB_Location = '../LucaDB/cnrl_alerts_22oct.db' /Users/pratheepravysandirane/Downloads/cnrl_alerts_22oct.db
     DB_Location = '/Users/pratheepravysandirane/Downloads/cnrl_alerts_22oct.db'
     DbConnObj = db.CrtConnObject(DB_Location)
     archive_ind = 0

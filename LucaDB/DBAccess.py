@@ -2,7 +2,6 @@ import sqlite3
 from datetime import datetime, date
 import psycopg2
 
-
 def CrtConnObject(DB_Location):
     try:
         sqliteConnection = sqlite3.connect(DB_Location, detect_types=sqlite3.PARSE_DECLTYPES)
@@ -148,6 +147,26 @@ def Alerts_Insert(ConnObj, Alerting_Rules_sid, Alert_Conditiion, Actual_Value, A
 
     return db_msg
 
+def Luca_Aggregate_by_opctag(ConnObj):
+    db_msg = ''
+    records = []
+    try:
+        CursorObj = ConnObj.cursor()
+
+        sqlite_aggr = """select opc_tag, strftime('%d', opc_timestamp) , AVG(tag_value) avg_tag_value from '""" \
+                      "OPC_TRANS_LOG otl where tag_status = 'Good' group by 1,2"""
+
+        ret = CursorObj.execute(sqlite_aggr)
+        records = CursorObj.fetchall()
+
+        CursorObj.close()
+
+    except sqlite3.Error as err:
+        print("Error while working with SQLite at Opc trans table", err)
+        # db_msg = 'Failure: ' + error
+
+    return records
+
 
 def Alerts_Select(ConnObj, Alerting_Rules_SID, Suppress_After_Alert_In_Secs):
     db_msg = ''
@@ -174,7 +193,7 @@ def Alerts_Select(ConnObj, Alerting_Rules_SID, Suppress_After_Alert_In_Secs):
 
 
 # function to delete records less than the given input date
-def Alerts_Purge(ConnObj, Alarm_Name):
+def Alerts_Purge(ConnObj, input_date):
     db_msg = ''
     format = '%Y-%m-%d'  # suitable  format
     input_date = datetime.strptime(input_date, format)
