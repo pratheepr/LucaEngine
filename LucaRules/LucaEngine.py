@@ -147,6 +147,8 @@ def process_rule_flatline(ConnObj, inp_data_frame, tag_name, time_frame):
 
     return rounded_slope, flatline_value
 
+
+
 def archive_to_postgres(Prev_N_Days):
     rcd = db.OpcTransLog_CopyToHist(ConnObj=DbConnObj, Prev_N_Days=Prev_N_Days)
     return_code = 0
@@ -159,6 +161,8 @@ def archive_to_postgres(Prev_N_Days):
         else:
             return_code = 1
     return return_code
+
+
 
 if __name__ == "__main__":
 

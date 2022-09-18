@@ -25,6 +25,25 @@ def CrtPGConnObject():
         print('Error is: ' + Error)
     return "error"
 
+def move_aggr_to_postgres(PGConnObj, rcd):
+    print('inside PGInsert')
+    try:
+        curs = PGConnObj.cursor()
+        for row in rcd:
+            PGInsert_aggr_sql = 'INSERT INTO public."OPC_TRANS_LOG_AGGR" ("OPC_DATE", "OPC_TAG", "TAG_VALUE_aggr") VALUES(%s, %s, %s) ' \
+                                'ON CONFLICT("OPC_DATE","OPC_TAG") DO UPDATE SET "TAG_VALUE_aggr"= (%s)'
+            insert_values = (row[1], row[0], row[2], row[2])
+
+            curs.execute(PGInsert_aggr_sql, insert_values)
+        PGConnObj.commit()
+        curs.close()
+    except (Exception, psycopg2.DatabaseError) as PGError:
+        print(PGError)
+    finally:
+        if PGConnObj is not None:
+            PGConnObj.close()
+            return 0
+
 
 def Insert2PG_OpcTransLogHist(PGConnObj, rcd):
     print('inside PGInsert')
@@ -153,7 +172,7 @@ def Luca_Aggregate_by_opctag(ConnObj):
     try:
         CursorObj = ConnObj.cursor()
 
-        sqlite_aggr = """select opc_tag, strftime('%d', opc_timestamp) , AVG(tag_value) avg_tag_value from '""" \
+        sqlite_aggr = """select opc_tag, date(opc_timestamp) opc_date, AVG(tag_value) tag_value_aggr from """ \
                       "OPC_TRANS_LOG otl where tag_status = 'Good' group by 1,2"""
 
         ret = CursorObj.execute(sqlite_aggr)
